@@ -17,6 +17,12 @@ type UploadState =
   | { phase: "success"; result: UploadResult }
   | { phase: "error"; message: string };
 
+type ExtractionState =
+  | { phase: "idle" }
+  | { phase: "loading" }
+  | { phase: "success"; text: string; charCount: number }
+  | { phase: "error"; message: string };
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 function formatSize(bytes: number): string {
@@ -26,6 +32,7 @@ function formatSize(bytes: number): string {
 
 export default function UploadForm() {
   const [state, setState] = useState<UploadState>({ phase: "idle" });
+  const [extraction, setExtraction] = useState<ExtractionState>({ phase: "idle" });
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -51,9 +58,30 @@ export default function UploadForm() {
       }
 
       setState({ phase: "success", result: data as UploadResult });
+      setExtraction({ phase: "idle" });
       if (inputRef.current) inputRef.current.value = "";
     } catch {
       setState({
+        phase: "error",
+        message: "Impossible de contacter le serveur. Le backend est-il démarré ?",
+      });
+    }
+  }
+
+  async function handleExtract(documentId: string) {
+    setExtraction({ phase: "loading" });
+    try {
+      const response = await fetch(`${API_URL}/documents/${documentId}/text`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        setExtraction({ phase: "error", message: data.detail ?? "Erreur inconnue." });
+        return;
+      }
+
+      setExtraction({ phase: "success", text: data.text, charCount: data.char_count });
+    } catch {
+      setExtraction({
         phase: "error",
         message: "Impossible de contacter le serveur. Le backend est-il démarré ?",
       });
@@ -95,6 +123,29 @@ export default function UploadForm() {
             <li>Type : {state.result.content_type}</li>
             <li>Id : {state.result.id}</li>
           </ul>
+          <button
+            type="button"
+            onClick={() => handleExtract(state.result.id)}
+            disabled={extraction.phase === "loading"}
+            className={styles.button}
+          >
+            {extraction.phase === "loading"
+              ? "Extraction en cours..."
+              : "Extraire le texte brut"}
+          </button>
+        </div>
+      )}
+
+      {extraction.phase === "success" && (
+        <div className={styles.extraction}>
+          <strong>{extraction.charCount} caractères extraits</strong>
+          <pre className={styles.text}>{extraction.text}</pre>
+        </div>
+      )}
+
+      {extraction.phase === "error" && (
+        <div className={`${styles.status} ${styles.error}`}>
+          <strong>Erreur d&apos;extraction :</strong> {extraction.message}
         </div>
       )}
 
