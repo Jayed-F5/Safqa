@@ -1,0 +1,19 @@
+# Frontend (Next.js)
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# Backend (Python)
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/uploads/
+*.pyc
+
+# Env secrets
+.env
+backend/.env
+frontend/.env.local
+
+# OS / éditeurs
+.DS_Store
